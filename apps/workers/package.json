@@ -1,0 +1,23 @@
+{
+  "name": "@accessaudit/workers",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx watch src/main.ts",
+    "start": "node dist/main.js"
+  },
+  "dependencies": {
+    "@accessaudit/database": "*",
+    "@accessaudit/shared": "*",
+    "@anthropic-ai/sdk": "^0.39.0",
+    "axe-core": "^4.10.0",
+    "bullmq": "^5.30.0",
+    "ioredis": "^5.4.0",
+    "playwright": "^1.49.0"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0"
+  }
+}

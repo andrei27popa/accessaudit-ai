@@ -1,0 +1,318 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Users & Organizations ─────────────────────────────────
+
+enum UserRole {
+  OWNER
+  DEVELOPER
+  TESTER
+  TEST_MANAGER
+  ADMIN
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String
+  password  String
+  role      UserRole @default(OWNER)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  memberships          Membership[]
+  ownedOrganizations   Organization[]
+  humanTestAssignments HumanTestAssignment[]
+
+  @@map("users")
+}
+
+model Organization {
+  id        String   @id @default(cuid())
+  name      String
+  ownerId   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  owner       User                  @relation(fields: [ownerId], references: [id])
+  memberships Membership[]
+  projects    Project[]
+  billing     BillingSubscription[]
+
+  @@map("organizations")
+}
+
+enum MemberRole {
+  OWNER
+  ADMIN
+  MEMBER
+  VIEWER
+}
+
+model Membership {
+  id     String     @id @default(cuid())
+  orgId  String
+  userId String
+  role   MemberRole @default(MEMBER)
+
+  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([orgId, userId])
+  @@map("memberships")
+}
+
+// ─── Projects ───────────────────────────────────────────────
+
+model Project {
+  id            String   @id @default(cuid())
+  orgId         String
+  name          String
+  domain        String
+  sitemapUrl    String?
+  detectedStack String?
+  settings      Json     @default("{}")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  organization     Organization       @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  scans            Scan[]
+  humanTestRequests HumanTestRequest[]
+
+  @@map("projects")
+}
+
+// ─── Scans ──────────────────────────────────────────────────
+
+enum ScanType {
+  FREE
+  FULL
+  VERIFY
+}
+
+enum ScanStatus {
+  QUEUED
+  SCANNING
+  AGGREGATING
+  REMEDIATING
+  DONE
+  FAILED
+}
+
+model Scan {
+  id              String     @id @default(cuid())
+  projectId       String
+  type            ScanType   @default(FREE)
+  status          ScanStatus @default(QUEUED)
+  url             String
+  startedAt       DateTime?
+  finishedAt      DateTime?
+  pagesScanned    Int        @default(0)
+  score           Float?
+  lighthouseScore Float?
+  complianceLabel String?
+  summary         Json?
+  errorMessage    String?
+  createdAt       DateTime   @default(now())
+
+  project     Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  pages       Page[]
+  findingsRaw FindingRaw[]
+  issueGroups IssueGroup[]
+  reports     Report[]
+
+  @@map("scans")
+}
+
+// ─── Pages ──────────────────────────────────────────────────
+
+model Page {
+  id             String  @id @default(cuid())
+  scanId         String
+  url            String
+  statusCode     Int?
+  title          String?
+  screenshotUrl  String?
+  domSnapshotRef String?
+
+  scan           Scan            @relation(fields: [scanId], references: [id], onDelete: Cascade)
+  findingsRaw    FindingRaw[]
+  issueInstances IssueInstance[]
+
+  @@map("pages")
+}
+
+// ─── Findings (Raw) ─────────────────────────────────────────
+
+enum Severity {
+  CRITICAL
+  SERIOUS
+  MODERATE
+  MINOR
+}
+
+model FindingRaw {
+  id          String   @id @default(cuid())
+  scanId      String
+  pageId      String
+  ruleId      String
+  impact      Severity
+  description String
+  help        String
+  helpUrl     String
+  nodes       Json
+
+  scan Scan @relation(fields: [scanId], references: [id], onDelete: Cascade)
+  page Page @relation(fields: [pageId], references: [id], onDelete: Cascade)
+
+  @@map("findings_raw")
+}
+
+// ─── Issue Groups (Aggregated) ──────────────────────────────
+
+enum IssueStatus {
+  OPEN
+  IN_PROGRESS
+  FIXED
+  WONT_FIX
+}
+
+model IssueGroup {
+  id                 String      @id @default(cuid())
+  scanId             String
+  ruleId             String
+  severity           Severity
+  title              String
+  description        String
+  helpUrl            String
+  wcagRefs           Json        @default("[]")
+  occurrences        Int         @default(0)
+  affectedPagesCount Int         @default(0)
+  priorityScore      Float       @default(0)
+  status             IssueStatus @default(OPEN)
+  aiFix              Json?
+
+  scan      Scan            @relation(fields: [scanId], references: [id], onDelete: Cascade)
+  instances IssueInstance[]
+
+  @@map("issue_groups")
+}
+
+model IssueInstance {
+  id           String @id @default(cuid())
+  issueGroupId String
+  pageId       String
+  selector     String
+  snippet      String @db.Text
+  evidence     Json?
+
+  issueGroup IssueGroup @relation(fields: [issueGroupId], references: [id], onDelete: Cascade)
+  page       Page       @relation(fields: [pageId], references: [id], onDelete: Cascade)
+
+  @@map("issue_instances")
+}
+
+// ─── Reports ────────────────────────────────────────────────
+
+enum ReportType {
+  EXECUTIVE
+  TECHNICAL
+  HUMAN
+}
+
+model Report {
+  id        String     @id @default(cuid())
+  scanId    String
+  type      ReportType
+  fileUrl   String?
+  data      Json?
+  createdAt DateTime   @default(now())
+
+  scan Scan @relation(fields: [scanId], references: [id], onDelete: Cascade)
+
+  @@map("reports")
+}
+
+// ─── Human Testing ──────────────────────────────────────────
+
+enum HumanTestStatus {
+  REQUESTED
+  ASSIGNED
+  IN_PROGRESS
+  DELIVERED
+}
+
+model HumanTestRequest {
+  id        String          @id @default(cuid())
+  projectId String
+  status    HumanTestStatus @default(REQUESTED)
+  scope     Json
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+
+  project     Project               @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  assignments HumanTestAssignment[]
+  reports     HumanTestReport[]
+
+  @@map("human_test_requests")
+}
+
+model HumanTestAssignment {
+  id           String          @id @default(cuid())
+  requestId    String
+  testerUserId String
+  status       HumanTestStatus @default(ASSIGNED)
+
+  request HumanTestRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  tester  User             @relation(fields: [testerUserId], references: [id])
+
+  @@map("human_test_assignments")
+}
+
+model HumanTestReport {
+  id        String   @id @default(cuid())
+  requestId String
+  summary   String   @db.Text
+  issues    Json
+  fileUrl   String?
+  createdAt DateTime @default(now())
+
+  request HumanTestRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  @@map("human_test_reports")
+}
+
+// ─── Billing ────────────────────────────────────────────────
+
+enum BillingPlan {
+  FREE
+  PRO
+  AGENCY
+}
+
+enum BillingStatus {
+  ACTIVE
+  PAST_DUE
+  CANCELED
+}
+
+model BillingSubscription {
+  id             String        @id @default(cuid())
+  orgId          String
+  plan           BillingPlan   @default(FREE)
+  status         BillingStatus @default(ACTIVE)
+  stripeId       String?
+  renewalDate    DateTime?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@map("billing_subscriptions")
+}
