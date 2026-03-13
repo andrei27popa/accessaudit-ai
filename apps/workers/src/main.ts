@@ -1,5 +1,5 @@
+import http from 'http';
 import { PrismaClient } from '@accessaudit/database';
-import { Redis } from 'ioredis';
 import { startScannerWorker } from './scanner/scanner.worker';
 import { startAggregatorWorker } from './aggregator/aggregator.worker';
 import { startRemediationWorker } from './remediation/remediation.worker';
@@ -31,8 +31,24 @@ async function main() {
 
   console.log('All workers started');
 
+  // Health check HTTP server (required for Render free tier Web Service)
+  const port = parseInt(process.env.PORT || '10000', 10);
+  const server = http.createServer((req, res) => {
+    if (req.url === '/health' || req.url === '/') {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ status: 'ok', workers: ['scanner', 'aggregator', 'remediation'] }));
+    } else {
+      res.writeHead(404);
+      res.end('Not found');
+    }
+  });
+  server.listen(port, () => {
+    console.log(`Health check server running on port ${port}`);
+  });
+
   const shutdown = async () => {
     console.log('Shutting down workers...');
+    server.close();
     await scannerWorker.close();
     await aggregatorWorker.close();
     await remediationWorker.close();
