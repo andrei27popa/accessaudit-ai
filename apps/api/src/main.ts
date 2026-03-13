@@ -9,7 +9,9 @@ async function bootstrap() {
 
   app.use(helmet());
   app.enableCors({
-    origin: process.env.WEB_URL || 'http://localhost:3000',
+    origin: process.env.WEB_URL
+      ? process.env.WEB_URL.split(',')
+      : 'http://localhost:3000',
     credentials: true,
   });
   app.setGlobalPrefix('api');
@@ -22,7 +24,7 @@ async function bootstrap() {
   );
   app.useGlobalFilters(new AllExceptionsFilter());
 
-  const port = process.env.API_PORT || 3001;
+  const port = process.env.PORT || process.env.API_PORT || 3001;
   await app.listen(port);
   console.log(`API running on http://localhost:${port}`);
 }
