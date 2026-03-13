@@ -1,0 +1,67 @@
+FROM node:20-slim
+
+# Install Playwright system dependencies + Chromium
+RUN apt-get update && apt-get install -y \
+    wget \
+    gnupg \
+    ca-certificates \
+    fonts-liberation \
+    libasound2 \
+    libatk-bridge2.0-0 \
+    libatk1.0-0 \
+    libatspi2.0-0 \
+    libcairo2 \
+    libcups2 \
+    libdbus-1-3 \
+    libdrm2 \
+    libgbm1 \
+    libglib2.0-0 \
+    libgtk-3-0 \
+    libnspr4 \
+    libnss3 \
+    libpango-1.0-0 \
+    libx11-6 \
+    libxcb1 \
+    libxcomposite1 \
+    libxdamage1 \
+    libxext6 \
+    libxfixes3 \
+    libxkbcommon0 \
+    libxrandr2 \
+    xdg-utils \
+    openssl \
+    --no-install-recommends \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Copy root workspace config
+COPY package.json package-lock.json* ./
+COPY turbo.json tsconfig.json ./
+
+# Copy workspace package.json files first (for layer caching)
+COPY packages/database/package.json ./packages/database/
+COPY packages/shared/package.json ./packages/shared/
+COPY apps/workers/package.json ./apps/workers/
+
+# Install all dependencies (npm workspaces resolves local packages)
+RUN npm install --legacy-peer-deps
+
+# Copy all source files
+COPY packages/database/ ./packages/database/
+COPY packages/shared/ ./packages/shared/
+COPY apps/workers/ ./apps/workers/
+
+# Generate Prisma client
+RUN cd packages/database && npx prisma generate
+
+# Install Playwright Chromium only (skip Firefox/WebKit)
+RUN npx playwright install chromium
+
+# Install tsx globally for TypeScript runtime execution
+RUN npm install -g tsx
+
+ENV NODE_ENV=production
+
+# Use tsx to run TypeScript directly (avoids build/module resolution issues with workspaces)
+CMD ["tsx", "apps/workers/src/main.ts"]
