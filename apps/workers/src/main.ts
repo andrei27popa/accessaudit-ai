@@ -1,21 +1,22 @@
 import http from 'http';
 import { PrismaClient } from '@accessaudit/database';
+import IORedis from 'ioredis';
 import { startScannerWorker } from './scanner/scanner.worker';
 import { startAggregatorWorker } from './aggregator/aggregator.worker';
 import { startRemediationWorker } from './remediation/remediation.worker';
 
 const prisma = new PrismaClient();
-function getRedisConnection() {
+function getRedisConnection(): IORedis {
   const redisUrl = process.env.REDIS_URL;
   if (redisUrl) {
-    return redisUrl;
+    return new IORedis(redisUrl, { maxRetriesPerRequest: null });
   }
-  return {
+  return new IORedis({
     host: process.env.REDIS_HOST || 'localhost',
     port: parseInt(process.env.REDIS_PORT || '6379', 10),
     password: process.env.REDIS_PASSWORD || undefined,
     maxRetriesPerRequest: null,
-  };
+  });
 }
 const redisConnection = getRedisConnection();
 
