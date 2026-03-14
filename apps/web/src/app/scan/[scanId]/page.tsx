@@ -8,7 +8,6 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScoreCircle } from '@/components/scan/score-circle';
 import { IssueCard } from '@/components/scan/issue-card';
-import { CodeBlock } from '@/components/scan/code-block';
 import { getComplianceColor, getSeverityColor } from '@/lib/utils';
 import { api } from '@/lib/api';
 
@@ -139,9 +138,6 @@ export default function ScanResultsPage() {
     : activeTab === 'serious' ? issues.filter((i) => i.severity === 'SERIOUS')
     : activeTab === 'fixable' ? issuesWithFix
     : issues;
-
-  // Get top quick wins
-  const quickWins = issuesWithFix.slice(0, 3);
 
   // Compliance status per framework
   const isNonCompliant = (scan.score || 0) < 90;
@@ -345,52 +341,14 @@ export default function ScanResultsPage() {
               </div>
             )}
 
-            {/* Quick Wins */}
-            {quickWins.length > 0 && (
-              <div className="mb-8">
-                <h2 className="text-lg font-bold text-gray-900 mb-4">Quick Wins - Fix These First</h2>
-                <div className="space-y-4">
-                  {quickWins.map((issue) => (
-                    <Card key={issue.id}>
-                      <CardHeader className="pb-3">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <Badge className={getSeverityColor(issue.severity)}>
-                            {issue.severity}
-                          </Badge>
-                          <Badge className="bg-purple-100 text-purple-800 border-purple-200">
-                            AI Fix
-                          </Badge>
-                          <CardTitle className="text-sm">{issue.title}</CardTitle>
-                        </div>
-                        <p className="text-sm text-gray-500 mt-1">{issue.aiFix.summary}</p>
-                      </CardHeader>
-                      <CardContent className="space-y-3">
-                        <div>
-                          <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">How to fix</h4>
-                          <ol className="list-decimal list-inside text-sm text-gray-600 space-y-1">
-                            {issue.aiFix.fixSteps?.map((step: string, i: number) => (
-                              <li key={i}>{step}</li>
-                            ))}
-                          </ol>
-                        </div>
-                        {issue.aiFix.codeFixes?.length > 0 && (
-                          <CodeBlock
-                            before={issue.aiFix.codeFixes[0].before}
-                            after={issue.aiFix.codeFixes[0].after}
-                            language={issue.aiFix.codeFixes[0].language}
-                            notes={issue.aiFix.codeFixes[0].notes}
-                          />
-                        )}
-                        <Link
-                          href={`/scan/${scanId}/issues/${issue.id}`}
-                          className="inline-block text-xs text-brand-600 hover:underline font-medium"
-                        >
-                          View full AI remediation &rarr;
-                        </Link>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
+            {/* Issue Summary */}
+            {issues.length > 0 && issuesWithFix.length > 0 && (
+              <div className="mb-6 p-3 bg-purple-50 rounded-lg border border-purple-200 flex items-center gap-2">
+                <span className="text-lg">&#x1f916;</span>
+                <p className="text-sm text-purple-800">
+                  <span className="font-semibold">{issuesWithFix.length} of {issues.length} issues</span> have AI-generated fixes.
+                  Click any issue to expand and see the fix.
+                </p>
               </div>
             )}
 
