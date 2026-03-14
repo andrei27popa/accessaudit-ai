@@ -76,7 +76,18 @@ export class ScansService {
       type,
     });
 
+    // Wake up workers service (Render free tier spins down after inactivity)
+    this.wakeUpWorkers();
+
     return { id: scan.id, status: scan.status };
+  }
+
+  private wakeUpWorkers() {
+    const workersUrl = process.env.WORKERS_URL;
+    if (!workersUrl) return;
+    fetch(`${workersUrl}/health`).catch(() => {
+      // Silently ignore - workers may already be awake or starting
+    });
   }
 
   async getScan(scanId: string) {
