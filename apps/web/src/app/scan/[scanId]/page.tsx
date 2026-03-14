@@ -119,6 +119,11 @@ export default function ScanResultsPage() {
 
   const summary = scan.summary || {};
 
+  // Extract unique WCAG criteria from all issues
+  const wcagCriteria = [...new Set(
+    issues.flatMap((i) => (i.wcagRefs as string[]) || [])
+  )].sort();
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -169,6 +174,31 @@ export default function ScanResultsPage() {
             </div>
           </CardContent>
         </Card>
+
+        {/* WCAG Criteria Affected */}
+        {wcagCriteria.length > 0 && (
+          <Card className="mb-8">
+            <CardContent className="py-6">
+              <h2 className="text-sm font-semibold text-gray-900 mb-3">WCAG Criteria Affected</h2>
+              <div className="flex flex-wrap gap-2">
+                {wcagCriteria.map((ref) => (
+                  <a
+                    key={ref}
+                    href={`https://www.w3.org/WAI/WCAG22/Understanding/${ref.replace(/\./g, '')}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs bg-red-50 text-red-700 border border-red-200 px-2 py-1 rounded hover:bg-red-100 transition-colors"
+                  >
+                    {ref}
+                  </a>
+                ))}
+              </div>
+              <p className="text-xs text-gray-400 mt-2">
+                {wcagCriteria.length} WCAG 2.2 criteria need attention
+              </p>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Quick Wins */}
         {quickWins.length > 0 && (
