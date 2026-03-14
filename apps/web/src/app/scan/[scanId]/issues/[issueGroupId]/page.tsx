@@ -128,6 +128,51 @@ export default function IssueDetailPage() {
                 </ul>
               </div>
 
+              {/* WCAG Techniques & Legal Context */}
+              <div className="grid md:grid-cols-2 gap-4">
+                {aiFix.wcagTechniques && aiFix.wcagTechniques.length > 0 && (
+                  <div className="bg-white rounded-lg p-4 border border-gray-200">
+                    <h4 className="text-sm font-semibold text-gray-900 mb-2">WCAG Techniques</h4>
+                    <div className="flex flex-wrap gap-1">
+                      {aiFix.wcagTechniques.map((tech: string) => (
+                        <a
+                          key={tech}
+                          href={`https://www.w3.org/WAI/WCAG22/Techniques/${tech.match(/^[A-Z]+/)?.[0] || 'general'}/${tech}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs bg-blue-50 text-blue-700 border border-blue-200 px-2 py-0.5 rounded hover:bg-blue-100"
+                        >
+                          {tech}
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {aiFix.legalContext && (
+                  <div className="bg-white rounded-lg p-4 border border-gray-200">
+                    <h4 className="text-sm font-semibold text-gray-900 mb-2">Legal & Compliance</h4>
+                    <p className="text-sm text-gray-600">{aiFix.legalContext}</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Framework-specific fixes */}
+              {aiFix.frameworkFixes && Object.keys(aiFix.frameworkFixes).length > 0 && (
+                <div>
+                  <h4 className="text-sm font-semibold text-gray-900 mb-2">Framework-Specific Notes</h4>
+                  <div className="space-y-2">
+                    {Object.entries(aiFix.frameworkFixes).map(([framework, note]: [string, any]) => (
+                      note && (
+                        <div key={framework} className="bg-white rounded-lg p-3 border border-gray-200">
+                          <span className="text-xs font-semibold text-gray-500 uppercase">{framework}</span>
+                          <p className="text-sm text-gray-700 mt-1">{note}</p>
+                        </div>
+                      )
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <div className="flex items-center gap-2">
                 <span className="text-xs text-gray-500">Risk level:</span>
                 <Badge className={
