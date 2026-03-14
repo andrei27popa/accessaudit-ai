@@ -34,8 +34,18 @@ export function startScannerWorker(prisma: PrismaClient, connection: ConnectionO
           userAgent: 'AccessAudit/1.0 (Accessibility Scanner)',
         });
         const page = await context.newPage();
+        await page.setViewportSize({ width: 1280, height: 720 });
 
-        await page.goto(url, { waitUntil: 'networkidle', timeout: 30000 });
+        // Use domcontentloaded + extra wait for resilience on heavy sites
+        const response = await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
+        const statusCode = response?.status() || 200;
+        // Wait for the page to settle (dynamic content, lazy loading)
+        await page.waitForTimeout(2000);
+        try {
+          await page.waitForLoadState('networkidle', { timeout: 10000 });
+        } catch {
+          // networkidle is best-effort — proceed if it times out
+        }
 
         // Get page info
         const title = await page.title();
@@ -46,7 +56,7 @@ export function startScannerWorker(prisma: PrismaClient, connection: ConnectionO
             scanId,
             url,
             title,
-            statusCode: 200,
+            statusCode,
           },
         });
 
