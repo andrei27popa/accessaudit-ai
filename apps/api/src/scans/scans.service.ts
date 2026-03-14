@@ -95,6 +95,7 @@ export class ScansService {
       where: { id: scanId },
       include: {
         project: { select: { name: true, domain: true } },
+        pages: { select: { url: true, title: true, screenshotUrl: true, statusCode: true }, take: 1 },
       },
     });
 
@@ -102,7 +103,11 @@ export class ScansService {
       throw new NotFoundException('Scan not found');
     }
 
-    return scan;
+    return {
+      ...scan,
+      screenshotUrl: scan.pages?.[0]?.screenshotUrl || null,
+      pageTitle: scan.pages?.[0]?.title || null,
+    };
   }
 
   async getScanIssues(scanId: string) {

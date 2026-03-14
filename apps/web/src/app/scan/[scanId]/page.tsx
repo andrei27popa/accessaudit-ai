@@ -69,29 +69,60 @@ export default function ScanResultsPage() {
   // Still loading / scanning
   if (!scan || (loading && scan?.status !== 'DONE' && scan?.status !== 'FAILED')) {
     const info = statusInfo[scan?.status] || statusInfo.QUEUED;
+    const currentStep = scan?.status === 'QUEUED' ? 0 : scan?.status === 'SCANNING' ? 1 : scan?.status === 'AGGREGATING' ? 2 : scan?.status === 'REMEDIATING' ? 3 : 0;
+    const steps = [
+      { label: 'Queue', icon: '\u23f3' },
+      { label: 'Scan', icon: '\ud83d\udd0d' },
+      { label: 'Analyze', icon: '\ud83d\udcca' },
+      { label: 'AI Fix', icon: '\ud83e\udd16' },
+    ];
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 px-4">
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-b from-brand-50 to-white px-4">
         <Link href="/" className="text-2xl font-bold text-brand-600 mb-8">
           AccessAudit<span className="text-gray-400 font-normal ml-1">AI</span>
         </Link>
-        <Card className="w-full max-w-md">
-          <CardContent className="py-12 text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-600 mx-auto mb-4" />
-            <h2 className="text-lg font-semibold text-gray-900 mb-2">{info.message}</h2>
-            <p className="text-sm text-gray-500 mb-3">
-              {scan?.url || 'Loading...'}
-            </p>
-            <div className="w-full bg-gray-200 rounded-full h-2 mb-3">
+        <Card className="w-full max-w-lg shadow-lg">
+          <CardContent className="py-10 px-8">
+            <div className="text-center mb-6">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-600 mx-auto mb-4" />
+              <h2 className="text-xl font-bold text-gray-900 mb-1">{info.message}</h2>
+              <p className="text-sm text-gray-500 font-mono truncate max-w-xs mx-auto">
+                {scan?.url || 'Loading...'}
+              </p>
+            </div>
+
+            {/* Progress bar */}
+            <div className="w-full bg-gray-200 rounded-full h-2.5 mb-6">
               <div
-                className="bg-brand-600 h-2 rounded-full transition-all duration-1000 ease-out"
+                className="bg-brand-600 h-2.5 rounded-full transition-all duration-1000 ease-out"
                 style={{ width: `${info.progress}%` }}
               />
             </div>
-            <p className="text-xs text-gray-400">
+
+            {/* Step indicators */}
+            <div className="flex items-center justify-between mb-4">
+              {steps.map((step, i) => (
+                <div key={step.label} className="flex flex-col items-center gap-1">
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center text-lg border-2 transition-all ${
+                    i < currentStep ? 'bg-green-100 border-green-500 text-green-600' :
+                    i === currentStep ? 'bg-brand-100 border-brand-500 text-brand-600 animate-pulse' :
+                    'bg-gray-100 border-gray-200 text-gray-400'
+                  }`}>
+                    {i < currentStep ? '\u2713' : step.icon}
+                  </div>
+                  <span className={`text-xs font-medium ${i <= currentStep ? 'text-gray-700' : 'text-gray-400'}`}>
+                    {step.label}
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            <p className="text-xs text-gray-400 text-center">
               {info.detail}
             </p>
           </CardContent>
         </Card>
+        <p className="text-xs text-gray-400 mt-6">This usually takes 15-30 seconds</p>
       </div>
     );
   }

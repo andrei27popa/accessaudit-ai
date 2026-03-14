@@ -50,6 +50,15 @@ export function startScannerWorker(prisma: PrismaClient, connection: ConnectionO
         // Get page info
         const title = await page.title();
 
+        // Capture screenshot as base64 data URL
+        let screenshotUrl: string | undefined;
+        try {
+          const screenshotBuffer = await page.screenshot({ type: 'jpeg', quality: 60, fullPage: false });
+          screenshotUrl = `data:image/jpeg;base64,${screenshotBuffer.toString('base64')}`;
+        } catch {
+          // Screenshot is optional
+        }
+
         // Create page record
         const pageRecord = await prisma.page.create({
           data: {
@@ -57,6 +66,7 @@ export function startScannerWorker(prisma: PrismaClient, connection: ConnectionO
             url,
             title,
             statusCode,
+            screenshotUrl,
           },
         });
 
