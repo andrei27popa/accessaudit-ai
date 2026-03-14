@@ -3,6 +3,8 @@ import type { PrismaClient } from '@accessaudit/database';
 import type { ConnectionOptions } from 'bullmq';
 import Anthropic from '@anthropic-ai/sdk';
 import type { RemediationOutput } from '@accessaudit/shared';
+import { WCAG_CRITERIA, AXE_RULE_TO_WCAG, WCAG_TO_FRAMEWORKS, COMPLIANCE_FRAMEWORKS } from '@accessaudit/shared';
+import { RULE_FIX_MAP } from './fallback-fixes';
 
 export const REMEDIATE_QUEUE = 'remediate';
 
@@ -11,23 +13,31 @@ interface RemediateJob {
   issueGroupIds: string[];
 }
 
-const SYSTEM_PROMPT = `You are an expert web accessibility consultant. You analyze accessibility violations found by automated scanning tools (axe-core) and provide actionable, context-aware remediation guidance.
+const SYSTEM_PROMPT = `You are an expert web accessibility consultant specializing in WCAG 2.2 compliance, assistive technology compatibility, and accessibility law (ADA, EAA, EN 301 549, Section 508).
 
-Your task is to analyze the given accessibility issue and provide a fix recommendation. You must return a JSON object with this exact structure:
+You analyze accessibility violations found by axe-core and provide actionable, framework-aware remediation guidance.
 
+Return a JSON object with this exact structure:
 {
-  "summary": "1-2 sentence summary of the issue",
-  "whoIsAffected": "Who is impacted (e.g., screen reader users, keyboard users)",
-  "whyItMatters": "Why this matters (legal, UX, business impact)",
+  "summary": "1-2 sentence summary of the issue and its impact",
+  "whoIsAffected": "Specific user groups impacted (e.g., screen reader users using NVDA/JAWS/VoiceOver, keyboard-only users, users with low vision)",
+  "whyItMatters": "Why this matters - include legal risk (ADA/EAA), UX impact, and business case",
   "fixSteps": ["Step 1...", "Step 2...", "Step 3..."],
   "codeFixes": [
     {
       "language": "html",
       "before": "<code before fix>",
       "after": "<code after fix>",
-      "notes": "Optional explanation"
+      "notes": "Explanation referencing specific WCAG technique (e.g., Technique H37, G94)"
     }
   ],
+  "frameworkFixes": {
+    "react": "React-specific fix if applicable (JSX patterns, hooks, etc.)",
+    "vue": "Vue-specific fix if applicable",
+    "angular": "Angular-specific fix if applicable"
+  },
+  "wcagTechniques": ["H37", "G94"],
+  "legalContext": "Brief note on which regulations this violates (ADA Title III, EAA, EN 301 549 clause 9.x.x)",
   "testHowToVerify": ["Verification step 1...", "Verification step 2..."],
   "riskLevel": "low|medium|high",
   "references": ["WCAG criterion IDs like 1.1.1"]
@@ -35,8 +45,10 @@ Your task is to analyze the given accessibility issue and provide a fix recommen
 
 Rules:
 - Generate code fixes adapted to the actual DOM snippet provided
-- Do NOT remove functionality
-- Do NOT change semantics without justification
+- When a tech stack is detected (React, Vue, Angular), provide framework-specific code fixes using proper component patterns
+- Reference specific WCAG sufficient techniques (e.g., H37 for alt text, G18 for contrast)
+- Mention relevant legal frameworks: ADA Title III for US sites, EAA/EN 301 549 for EU sites
+- Do NOT remove functionality or change semantics without justification
 - If context is insufficient, provide 2 variant suggestions
 - Only propose safe, non-breaking changes
 - Keep explanations clear and actionable for developers
@@ -81,6 +93,22 @@ export function startRemediationWorker(prisma: PrismaClient, connection: Connect
 
           const detectedStack = issueGroup.scan.project.detectedStack || 'HTML';
 
+          // Enrich with WCAG criteria details and legal framework context
+          const wcagRefs = (issueGroup.wcagRefs as string[]) || AXE_RULE_TO_WCAG[issueGroup.ruleId] || [];
+          const wcagDetails = wcagRefs
+            .map((ref) => {
+              const criterion = WCAG_CRITERIA[ref];
+              return criterion ? `${ref} ${criterion.title} (Level ${criterion.level}) - Techniques: ${criterion.techniques.join(', ')}` : ref;
+            })
+            .join('\n');
+
+          const affectedFrameworks = [...new Set(
+            wcagRefs.flatMap((ref) => WCAG_TO_FRAMEWORKS[ref] || []),
+          )]
+            .map((id) => COMPLIANCE_FRAMEWORKS[id]?.shortName)
+            .filter(Boolean)
+            .join(', ');
+
           const userPrompt = `Analyze this accessibility issue and provide a fix:
 
 Rule ID: ${issueGroup.ruleId}
@@ -88,9 +116,13 @@ Severity: ${issueGroup.severity}
 Description: ${issueGroup.description}
 Title: ${issueGroup.title}
 Help URL: ${issueGroup.helpUrl}
-WCAG References: ${JSON.stringify(issueGroup.wcagRefs)}
 Occurrences: ${issueGroup.occurrences}
 Affected Pages: ${issueGroup.affectedPagesCount}
+
+WCAG Criteria Details:
+${wcagDetails || 'Not mapped'}
+
+Legal Frameworks Affected: ${affectedFrameworks || 'All major frameworks (ADA, EAA, Section 508)'}
 
 DOM Snippet(s):
 ${domSnippets || 'No DOM snippet available'}
@@ -105,21 +137,26 @@ ${JSON.stringify(issueGroup.instances[0]?.evidence || {}, null, 2)}`;
           let aiFix: RemediationOutput;
 
           if (anthropic) {
-            const response = await anthropic.messages.create({
-              model: 'claude-sonnet-4-6-20250514',
-              max_tokens: 2000,
-              system: SYSTEM_PROMPT,
-              messages: [{ role: 'user', content: userPrompt }],
-            });
+            try {
+              const response = await anthropic.messages.create({
+                model: 'claude-sonnet-4-6-20250514',
+                max_tokens: 2500,
+                system: SYSTEM_PROMPT,
+                messages: [{ role: 'user', content: userPrompt }],
+              });
 
-            const text = response.content
-              .filter((block): block is Anthropic.TextBlock => block.type === 'text')
-              .map((block) => block.text)
-              .join('');
+              const text = response.content
+                .filter((block): block is Anthropic.TextBlock => block.type === 'text')
+                .map((block) => block.text)
+                .join('');
 
-            aiFix = JSON.parse(text);
+              aiFix = JSON.parse(text);
+            } catch (aiError: any) {
+              console.warn(`[Remediation] AI failed for ${issueGroup.ruleId}, using fallback:`, aiError.message);
+              aiFix = generateFallbackFix(issueGroup);
+            }
           } else {
-            // Fallback: generate a basic fix without AI
+            // Fallback: generate a fix from templates without AI
             aiFix = generateFallbackFix(issueGroup);
           }
 
@@ -140,7 +177,7 @@ ${JSON.stringify(issueGroup.instances[0]?.evidence || {}, null, 2)}`;
         console.log(`[Remediation] Completed all fixes for scan ${scanId}`);
       } catch (error: any) {
         console.error(`[Remediation] Failed for scan ${scanId}:`, error.message);
-        // Still mark as done even if AI fails - the scan results are still valid
+        // Still mark as done even if remediation fails - the scan results are still valid
         await prisma.scan.update({
           where: { id: scanId },
           data: { status: 'DONE', finishedAt: new Date() },
@@ -158,74 +195,63 @@ ${JSON.stringify(issueGroup.instances[0]?.evidence || {}, null, 2)}`;
 }
 
 function generateFallbackFix(issueGroup: any): RemediationOutput {
-  const ruleFixMap: Record<string, Partial<RemediationOutput>> = {
-    'image-alt': {
-      summary: 'Images must have alternative text to be accessible to screen reader users.',
-      whoIsAffected: 'Screen reader users who cannot see images.',
-      fixSteps: [
-        'Add a descriptive alt attribute to the <img> element',
-        'If the image is decorative, use alt="" (empty alt)',
-        'Ensure alt text describes the purpose, not just appearance',
-      ],
-    },
-    'button-name': {
-      summary: 'Buttons must have discernible text for assistive technology users.',
-      whoIsAffected: 'Screen reader users and voice control users.',
-      fixSteps: [
-        'Add visible text content to the button',
-        'Or add an aria-label attribute with descriptive text',
-        'For icon buttons, use aria-label to describe the action',
-      ],
-    },
-    'link-name': {
-      summary: 'Links must have discernible text so users know where they navigate.',
-      whoIsAffected: 'Screen reader users who rely on link text for navigation.',
-      fixSteps: [
-        'Add descriptive text inside the <a> element',
-        'Or add an aria-label attribute',
-        'Avoid generic text like "click here" or "read more"',
-      ],
-    },
-    'color-contrast': {
-      summary: 'Text must have sufficient color contrast against its background.',
-      whoIsAffected: 'Users with low vision or color vision deficiencies.',
-      fixSteps: [
-        'Ensure text contrast ratio meets WCAG AA minimum (4.5:1 for normal text, 3:1 for large text)',
-        'Use a contrast checker tool to verify',
-        'Adjust either text or background color',
-      ],
-    },
-    label: {
-      summary: 'Form inputs must have associated labels for screen reader users.',
-      whoIsAffected: 'Screen reader users who need to understand form field purposes.',
-      fixSteps: [
-        'Add a <label> element with a for attribute matching the input id',
-        'Or use aria-label or aria-labelledby',
-        'Ensure the label clearly describes the expected input',
-      ],
-    },
-  };
+  const specific = RULE_FIX_MAP[issueGroup.ruleId];
+  const wcagRefs = (issueGroup.wcagRefs as string[]) || AXE_RULE_TO_WCAG[issueGroup.ruleId] || [];
 
-  const specific = ruleFixMap[issueGroup.ruleId] || {};
+  // Get legal context from WCAG refs
+  const frameworks = [...new Set(
+    wcagRefs.flatMap((ref) => WCAG_TO_FRAMEWORKS[ref] || []),
+  )]
+    .map((id) => COMPLIANCE_FRAMEWORKS[id]?.shortName)
+    .filter(Boolean);
 
+  const legalContext = frameworks.length > 0
+    ? `This issue affects compliance with: ${frameworks.join(', ')}.`
+    : 'This issue affects compliance with major accessibility regulations including ADA and EAA.';
+
+  if (specific) {
+    return {
+      summary: specific.summary,
+      whoIsAffected: specific.whoIsAffected,
+      whyItMatters: specific.whyItMatters || `Fixing this issue improves accessibility compliance and user experience. ${legalContext}`,
+      fixSteps: specific.fixSteps,
+      codeFixes: specific.codeFixes || (issueGroup.instances?.[0]?.snippet
+        ? [{
+            language: 'html',
+            before: issueGroup.instances[0].snippet,
+            after: `<!-- Fix the ${issueGroup.ruleId} issue -->\n${issueGroup.instances[0].snippet}`,
+            notes: 'Review and apply the appropriate fix based on context.',
+          }]
+        : []),
+      testHowToVerify: [
+        'Run the accessibility scanner again to verify the fix',
+        'Test with a screen reader (NVDA, VoiceOver, or JAWS)',
+        'Verify keyboard navigation works correctly',
+      ],
+      riskLevel: 'low',
+      references: specific.references || wcagRefs,
+      wcagTechniques: specific.wcagTechniques,
+      legalContext,
+    };
+  }
+
+  // Generic fallback for unmapped rules
   return {
-    summary: specific.summary || `This element has an accessibility issue: ${issueGroup.title}`,
-    whoIsAffected: specific.whoIsAffected || 'Users who rely on assistive technologies.',
-    whyItMatters: 'Fixing this issue improves accessibility compliance and ensures all users can interact with your website.',
-    fixSteps: specific.fixSteps || [
+    summary: `This element has an accessibility issue: ${issueGroup.title}`,
+    whoIsAffected: 'Users who rely on assistive technologies including screen readers and keyboard navigation.',
+    whyItMatters: `Fixing this issue improves accessibility compliance and ensures all users can interact with your website. ${legalContext}`,
+    fixSteps: [
       `Review the element and fix the "${issueGroup.ruleId}" violation`,
-      'Refer to the WCAG documentation for detailed guidance',
+      `Refer to the WCAG documentation for detailed guidance: ${issueGroup.helpUrl || 'https://www.w3.org/WAI/WCAG22/quickref/'}`,
       'Test with a screen reader after making changes',
     ],
     codeFixes: issueGroup.instances?.[0]?.snippet
-      ? [
-          {
-            language: 'html',
-            before: issueGroup.instances[0].snippet,
-            after: `<!-- Fix the ${issueGroup.ruleId} issue in this element -->\n${issueGroup.instances[0].snippet}`,
-            notes: 'Review and apply the appropriate fix based on the context.',
-          },
-        ]
+      ? [{
+          language: 'html',
+          before: issueGroup.instances[0].snippet,
+          after: `<!-- Fix the ${issueGroup.ruleId} issue in this element -->\n${issueGroup.instances[0].snippet}`,
+          notes: 'Review and apply the appropriate fix based on the context.',
+        }]
       : [],
     testHowToVerify: [
       'Run the accessibility scanner again to verify the fix',
@@ -233,6 +259,7 @@ function generateFallbackFix(issueGroup: any): RemediationOutput {
       'Verify keyboard navigation works correctly',
     ],
     riskLevel: 'low',
-    references: Array.isArray(issueGroup.wcagRefs) ? issueGroup.wcagRefs : [],
+    references: wcagRefs,
+    legalContext,
   };
 }

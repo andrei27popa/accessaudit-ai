@@ -58,7 +58,7 @@ export function startScannerWorker(prisma: PrismaClient, connection: ConnectionO
           return (window as any).axe.run(document, {
             runOnly: {
               type: 'tag',
-              values: ['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa'],
+              values: ['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa', 'best-practice'],
             },
           });
         });
@@ -86,6 +86,7 @@ export function startScannerWorker(prisma: PrismaClient, connection: ConnectionO
                   target: node.target,
                   failureSummary: node.failureSummary || '',
                   impact: node.impact || violation.impact,
+                  tags: violation.tags || [],
                 },
               },
             });

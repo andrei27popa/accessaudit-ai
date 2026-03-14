@@ -7,7 +7,7 @@ import {
   calculatePriorityScore,
   isScreenReaderBlocker,
 } from '@accessaudit/shared';
-import { extractWcagRefs } from '@accessaudit/shared';
+import { extractWcagRefs, AXE_RULE_TO_WCAG } from '@accessaudit/shared';
 import type { SeverityLevel } from '@accessaudit/shared';
 
 export const AGGREGATE_QUEUE = 'aggregate';
@@ -73,6 +73,13 @@ export function startAggregatorWorker(prisma: PrismaClient, connection: Connecti
 
           const group = groups.get(key)!;
           group.pages.add(finding.pageId);
+
+          // Extract tags from first finding to populate WCAG refs
+          const violationTags = Array.isArray(nodes.tags) ? nodes.tags : [];
+          if (group.tags.length === 0 && violationTags.length > 0) {
+            group.tags = violationTags;
+          }
+
           group.instances.push({
             pageId: finding.pageId,
             selector: Array.isArray(nodes.target) ? nodes.target.join(' > ') : String(nodes.target || ''),
@@ -88,7 +95,11 @@ export function startAggregatorWorker(prisma: PrismaClient, connection: Connecti
           const severity = group.severity as SeverityLevel;
           const affectedPagesCount = group.pages.size;
           const occurrences = group.instances.length;
-          const wcagRefs = extractWcagRefs(group.tags);
+          // Extract WCAG refs from axe tags, falling back to rule-to-WCAG mapping
+          let wcagRefs = extractWcagRefs(group.tags);
+          if (wcagRefs.length === 0) {
+            wcagRefs = AXE_RULE_TO_WCAG[group.ruleId] || [];
+          }
 
           const priorityScore = calculatePriorityScore(
             severity,

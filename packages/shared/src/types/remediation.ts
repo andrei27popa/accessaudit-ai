@@ -25,4 +25,8 @@ export interface RemediationOutput {
   testHowToVerify: string[];
   riskLevel: 'low' | 'medium' | 'high';
   references: string[];
+  // Enhanced fields for framework-specific fixes and legal compliance
+  frameworkFixes?: Record<string, string>;
+  wcagTechniques?: string[];
+  legalContext?: string;
 }
