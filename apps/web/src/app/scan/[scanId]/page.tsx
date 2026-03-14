@@ -50,8 +50,17 @@ export default function ScanResultsPage() {
     }
   }, [scan, pollCount, fetchScan]);
 
+  // Status messages and progress
+  const statusInfo: Record<string, { message: string; detail: string; progress: number }> = {
+    QUEUED: { message: 'Preparing your scan...', detail: 'Your scan is queued and will start shortly', progress: 10 },
+    SCANNING: { message: 'Scanning your page...', detail: 'Analyzing accessibility with WCAG 2.2 standards', progress: 40 },
+    AGGREGATING: { message: 'Analyzing results...', detail: 'Grouping issues and calculating your score', progress: 65 },
+    REMEDIATING: { message: 'Generating fixes...', detail: 'AI is creating code fixes for your issues', progress: 85 },
+  };
+
   // Still loading / scanning
   if (!scan || (loading && scan?.status !== 'DONE' && scan?.status !== 'FAILED')) {
+    const info = statusInfo[scan?.status] || statusInfo.QUEUED;
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 px-4">
         <Link href="/" className="text-2xl font-bold text-brand-600 mb-8">
@@ -60,12 +69,19 @@ export default function ScanResultsPage() {
         <Card className="w-full max-w-md">
           <CardContent className="py-12 text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-600 mx-auto mb-4" />
-            <h2 className="text-lg font-semibold text-gray-900 mb-2">Scanning your page...</h2>
-            <p className="text-sm text-gray-500 mb-1">
+            <h2 className="text-lg font-semibold text-gray-900 mb-2">{info.message}</h2>
+            <p className="text-sm text-gray-500 mb-3">
               {scan?.url || 'Loading...'}
             </p>
+            {/* Progress bar */}
+            <div className="w-full bg-gray-200 rounded-full h-2 mb-3">
+              <div
+                className="bg-brand-600 h-2 rounded-full transition-all duration-1000 ease-out"
+                style={{ width: `${info.progress}%` }}
+              />
+            </div>
             <p className="text-xs text-gray-400">
-              Status: {scan?.status || 'Loading'} {scan?.status === 'REMEDIATING' && '(generating fixes)'}
+              {info.detail}
             </p>
           </CardContent>
         </Card>
@@ -199,11 +215,23 @@ export default function ScanResultsPage() {
           <h2 className="text-xl font-bold text-gray-900 mb-4">
             All Issues ({issues.length})
           </h2>
-          <div className="space-y-3">
-            {issues.map((issue) => (
-              <IssueCard key={issue.id} issue={issue} scanId={scanId} />
-            ))}
-          </div>
+          {issues.length === 0 ? (
+            <Card>
+              <CardContent className="py-8 text-center">
+                <div className="text-4xl mb-3">🎉</div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-1">No issues found!</h3>
+                <p className="text-sm text-gray-500">
+                  This page appears to meet WCAG 2.2 AA standards. Great job!
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-3">
+              {issues.map((issue) => (
+                <IssueCard key={issue.id} issue={issue} scanId={scanId} />
+              ))}
+            </div>
+          )}
         </div>
 
         {/* CTA */}
