@@ -30,7 +30,10 @@ export default function LoginPage() {
       // If there's a scanId from a free scan, claim it to this account
       if (scanId) {
         try {
-          await api.claimScan(scanId);
+          const result = await api.claimScan(scanId);
+          // Redirect to the claimed project's scan page
+          router.push(`/projects/${result.projectId}/scans/${scanId}`);
+          return;
         } catch {
           // Claim failed silently — scan may already be claimed
         }
