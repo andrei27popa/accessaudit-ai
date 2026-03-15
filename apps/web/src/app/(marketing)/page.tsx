@@ -185,51 +185,51 @@ function ComparisonSlider() {
       onTouchStart={(e) => { setIsDragging(true); updatePosition(e.touches[0].clientX); }}
     >
       {/* Right side – Issues view */}
-      <div className="absolute inset-0 bg-gray-50 p-3 sm:p-6 flex flex-col">
+      <div className="absolute inset-0 bg-gray-900 p-3 sm:p-6 flex flex-col">
         <div className="flex items-center gap-1.5 sm:gap-2 mb-2 sm:mb-3">
           <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-red-500" />
           <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-yellow-500" />
           <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-green-500" />
           <span className="ml-1 sm:ml-2 text-[10px] sm:text-xs text-gray-400 font-mono truncate">accessibility-report.html</span>
         </div>
-        <div className="flex-1 bg-white rounded-lg border border-gray-200 p-2.5 sm:p-4 overflow-hidden">
-          <div className="flex items-center gap-1.5 sm:gap-2 mb-2 sm:mb-3 flex-wrap">
-            <span className="text-[10px] sm:text-xs font-bold text-red-600 bg-red-50 px-1.5 sm:px-2 py-0.5 rounded">3 Critical</span>
-            <span className="text-[10px] sm:text-xs font-bold text-orange-600 bg-orange-50 px-1.5 sm:px-2 py-0.5 rounded">5 Serious</span>
-            <span className="text-[10px] sm:text-xs font-bold text-yellow-600 bg-yellow-50 px-1.5 sm:px-2 py-0.5 rounded">2 Minor</span>
+        <div className="flex-1 bg-gray-950 rounded-lg border border-gray-700 p-2.5 sm:p-4 overflow-hidden">
+          <div className="flex items-center gap-1.5 sm:gap-2 mb-3 sm:mb-4 flex-wrap">
+            <span className="text-[10px] sm:text-xs font-bold text-red-400 bg-red-950 px-1.5 sm:px-2 py-0.5 rounded">3 Critical</span>
+            <span className="text-[10px] sm:text-xs font-bold text-orange-400 bg-orange-950 px-1.5 sm:px-2 py-0.5 rounded">5 Serious</span>
+            <span className="text-[10px] sm:text-xs font-bold text-yellow-400 bg-yellow-950 px-1.5 sm:px-2 py-0.5 rounded">2 Minor</span>
           </div>
-          <div className="space-y-1.5 sm:space-y-2 text-[10px] sm:text-xs font-mono">
-            <div className="flex gap-1.5 sm:gap-2 items-start">
-              <span className="text-red-500 mt-0.5">{'\u2718'}</span>
+          <div className="space-y-2.5 sm:space-y-3 text-[11px] sm:text-sm font-mono">
+            <div className="flex gap-2 items-start bg-red-950/40 rounded-lg p-2">
+              <span className="text-red-400 mt-0.5 text-sm">{'\u2718'}</span>
               <div>
-                <span className="text-gray-700">&lt;img src=&quot;hero.jpg&quot;&gt;</span>
-                <p className="text-red-600 text-[9px] sm:text-[11px] mt-0.5">Missing alt attribute (WCAG 1.1.1)</p>
+                <span className="text-gray-300">&lt;img src=&quot;hero.jpg&quot;&gt;</span>
+                <p className="text-red-400 text-[10px] sm:text-xs mt-0.5">Missing alt attribute (WCAG 1.1.1)</p>
               </div>
             </div>
-            <div className="flex gap-1.5 sm:gap-2 items-start">
-              <span className="text-red-500 mt-0.5">{'\u2718'}</span>
+            <div className="flex gap-2 items-start bg-red-950/40 rounded-lg p-2">
+              <span className="text-red-400 mt-0.5 text-sm">{'\u2718'}</span>
               <div>
-                <span className="text-gray-700">&lt;button class=&quot;btn&quot;&gt;&lt;/button&gt;</span>
-                <p className="text-red-600 text-[9px] sm:text-[11px] mt-0.5">Empty button (WCAG 4.1.2)</p>
+                <span className="text-gray-300">&lt;button class=&quot;btn&quot;&gt;&lt;/button&gt;</span>
+                <p className="text-red-400 text-[10px] sm:text-xs mt-0.5">Empty button (WCAG 4.1.2)</p>
               </div>
             </div>
-            <div className="flex gap-1.5 sm:gap-2 items-start">
-              <span className="text-orange-500 mt-0.5">{'\u26a0'}</span>
+            <div className="flex gap-2 items-start bg-orange-950/40 rounded-lg p-2">
+              <span className="text-orange-400 mt-0.5 text-sm">{'\u26a0'}</span>
               <div>
-                <span className="text-gray-700">color: #999 on #fff</span>
-                <p className="text-orange-600 text-[9px] sm:text-[11px] mt-0.5">Low contrast ratio 2.8:1 (WCAG 1.4.3)</p>
+                <span className="text-gray-300">color: #999 on #fff</span>
+                <p className="text-orange-400 text-[10px] sm:text-xs mt-0.5">Low contrast 2.8:1 (WCAG 1.4.3)</p>
               </div>
             </div>
-            <div className="flex gap-1.5 sm:gap-2 items-start">
-              <span className="text-green-500 mt-0.5">{'\u2714'}</span>
+            <div className="flex gap-2 items-start bg-green-950/40 rounded-lg p-2">
+              <span className="text-green-400 mt-0.5 text-sm">{'\u2714'}</span>
               <div>
-                <span className="text-green-700">AI Fix: Add alt=&quot;Hero banner&quot;</span>
-                <p className="text-gray-500 text-[9px] sm:text-[11px] mt-0.5">Copy code fix &rarr;</p>
+                <span className="text-green-300 font-semibold">AI Fix: Add alt=&quot;Hero banner&quot;</span>
+                <p className="text-green-500 text-[10px] sm:text-xs mt-0.5">Copy code fix &rarr;</p>
               </div>
             </div>
           </div>
         </div>
-        <div className="absolute bottom-2 right-2 sm:bottom-4 sm:right-4 text-[9px] sm:text-[10px] text-gray-400 uppercase tracking-wider font-semibold bg-white/90 backdrop-blur px-2 py-1 rounded">
+        <div className="absolute bottom-2 right-2 sm:bottom-4 sm:right-4 text-[9px] sm:text-[10px] text-gray-400 uppercase tracking-wider font-semibold bg-gray-800/90 backdrop-blur px-2 py-1 rounded">
           Issues &amp; AI Fixes
         </div>
       </div>
