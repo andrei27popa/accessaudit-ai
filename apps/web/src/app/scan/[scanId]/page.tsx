@@ -249,7 +249,7 @@ export default function ScanResultsPage() {
             <Link href="/">
               <Button variant="outline" size="sm" className="rounded-lg text-xs">New Scan</Button>
             </Link>
-            <Link href="/signup">
+            <Link href={`/signup?scanId=${scanId}`}>
               <Button size="sm" className="rounded-lg text-xs">Run Full Audit</Button>
             </Link>
           </div>
@@ -303,7 +303,7 @@ export default function ScanResultsPage() {
               </div>
             </div>
             {issues.length > 0 && (
-              <Link href="/signup">
+              <Link href={`/signup?scanId=${scanId}`}>
                 <Button className="bg-white text-gray-900 hover:bg-gray-100 rounded-xl font-semibold shadow-lg shadow-black/10 px-6">
                   Fix {issues.length} Issue{issues.length !== 1 ? 's' : ''}
                 </Button>
@@ -476,7 +476,7 @@ export default function ScanResultsPage() {
                 <p className="text-xs text-brand-100 mb-4">
                   Scan all pages, get AI fixes, and validate compliance.
                 </p>
-                <Link href="/signup">
+                <Link href={`/signup?scanId=${scanId}`}>
                   <Button className="w-full bg-white text-brand-700 hover:bg-brand-50 rounded-xl font-semibold">
                     Get Started Free
                   </Button>

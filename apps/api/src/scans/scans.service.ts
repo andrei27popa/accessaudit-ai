@@ -218,4 +218,42 @@ export class ScansService {
   triggerWakeUp() {
     this.wakeUpWorkers();
   }
+
+  async claimScan(userId: string, scanId: string) {
+    // Find the scan
+    const scan = await this.prisma.scan.findUnique({
+      where: { id: scanId },
+      include: {
+        project: {
+          include: { organization: true },
+        },
+      },
+    });
+
+    if (!scan) {
+      throw new NotFoundException('Scan not found');
+    }
+
+    // Only allow claiming scans from __free_scans__ org
+    if (scan.project.organization.name !== '__free_scans__') {
+      throw new BadRequestException('This scan has already been claimed');
+    }
+
+    // Find the user's organization
+    const membership = await this.prisma.membership.findFirst({
+      where: { userId, role: { in: ['OWNER', 'ADMIN'] } },
+    });
+
+    if (!membership) {
+      throw new BadRequestException('No organization found for user');
+    }
+
+    // Move the project (and all its scans) to the user's org
+    await this.prisma.project.update({
+      where: { id: scan.projectId },
+      data: { orgId: membership.orgId },
+    });
+
+    return { claimed: true, projectId: scan.projectId, scanId };
+  }
 }

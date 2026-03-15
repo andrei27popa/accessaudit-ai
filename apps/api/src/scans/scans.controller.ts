@@ -58,6 +58,16 @@ export class ScansController {
     return this.scansService.updateIssueStatus(issueGroupId, status);
   }
 
+  // Claim a free scan to user's account (authenticated)
+  @UseGuards(JwtAuthGuard)
+  @Post('scans/:scanId/claim')
+  claimScan(
+    @CurrentUser('sub') userId: string,
+    @Param('scanId') scanId: string,
+  ) {
+    return this.scansService.claimScan(userId, scanId);
+  }
+
   // Wake up workers (public - used by frontend when scan is stuck)
   @Public()
   @Post('wake-workers')

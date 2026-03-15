@@ -77,6 +77,9 @@ export const api = {
       body: JSON.stringify({ status }),
     }),
 
+  claimScan: (scanId: string) =>
+    apiFetch(`/scans/${scanId}/claim`, { method: 'POST' }),
+
   wakeWorkers: () =>
     apiFetch('/wake-workers', { method: 'POST' }),
 };

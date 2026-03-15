@@ -1,12 +1,13 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/lib/auth';
+import { api } from '@/lib/api';
 
 export default function SignupPage() {
   const [name, setName] = useState('');
@@ -16,6 +17,8 @@ export default function SignupPage() {
   const [loading, setLoading] = useState(false);
   const { signup } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const scanId = searchParams.get('scanId');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -30,6 +33,16 @@ export default function SignupPage() {
 
     try {
       await signup(email, name, password);
+
+      // If there's a scanId from a free scan, claim it to the new account
+      if (scanId) {
+        try {
+          await api.claimScan(scanId);
+        } catch {
+          // Claim failed silently — scan may already be claimed or not found
+        }
+      }
+
       router.push('/dashboard');
     } catch (err: any) {
       setError(err.message || 'Signup failed');
@@ -42,6 +55,11 @@ export default function SignupPage() {
     <Card>
       <CardHeader>
         <CardTitle className="text-center">Create your account</CardTitle>
+        {scanId && (
+          <p className="text-center text-sm text-brand-600 mt-1">
+            Your scan results will be saved to your account
+          </p>
+        )}
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -84,7 +102,10 @@ export default function SignupPage() {
         </form>
         <p className="mt-4 text-center text-sm text-gray-600">
           Already have an account?{' '}
-          <Link href="/login" className="text-brand-600 hover:text-brand-700 font-medium">
+          <Link
+            href={scanId ? `/login?scanId=${scanId}` : '/login'}
+            className="text-brand-600 hover:text-brand-700 font-medium"
+          >
             Log in
           </Link>
         </p>
