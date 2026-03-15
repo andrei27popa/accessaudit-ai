@@ -91,26 +91,29 @@ export class ScansService {
       return;
     }
 
-    // Retry pinging workers multiple times as Render free tier takes ~50s to spin up
-    const maxRetries = 12; // 12 retries × 5s = 60s total
-    const retryDelay = 5000;
+    // Strategy: First ping with long timeout (65s) to let Render cold-start the service.
+    // Render holds the HTTP request until the service spins up (~50s).
+    // If the first ping succeeds, we're done. Otherwise, retry with shorter timeouts.
+    const maxRetries = 3;
 
     const ping = async (attempt: number) => {
+      const timeoutMs = attempt === 1 ? 65000 : 15000; // First attempt: 65s, retries: 15s
       try {
         const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 8000);
+        const timeout = setTimeout(() => controller.abort(), timeoutMs);
+        console.log(`[WakeUp] Pinging workers (attempt ${attempt}, timeout ${timeoutMs / 1000}s)...`);
         const res = await fetch(`${workersUrl}/health`, { signal: controller.signal });
         clearTimeout(timeout);
         if (res.ok) {
           console.log(`[WakeUp] Workers are alive (attempt ${attempt})`);
-          return; // Workers are up, stop retrying
+          return;
         }
       } catch {
-        // Workers not ready yet
+        console.log(`[WakeUp] Ping attempt ${attempt} failed`);
       }
 
       if (attempt < maxRetries) {
-        setTimeout(() => ping(attempt + 1), retryDelay);
+        setTimeout(() => ping(attempt + 1), 5000);
       } else {
         console.error(`[WakeUp] Workers failed to respond after ${maxRetries} attempts`);
       }
