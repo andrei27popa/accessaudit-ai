@@ -1,4 +1,5 @@
 import { Controller, Get, Post, Patch, Param, Body, UseGuards } from '@nestjs/common';
+import { Throttle, SkipThrottle } from '@nestjs/throttler';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { Public } from '../common/decorators/public.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
@@ -9,8 +10,9 @@ import { CreateScanDto, FreeScanDto } from './scans.dto';
 export class ScansController {
   constructor(private scansService: ScansService) {}
 
-  // Public free scan endpoint
+  // Public free scan endpoint — limited to 3 per day per IP
   @Public()
+  @Throttle({ default: { ttl: 86400000, limit: 3 } })
   @Post('free-scan')
   freeScan(@Body() dto: FreeScanDto) {
     return this.scansService.createFreeScan(dto.url);
@@ -70,6 +72,7 @@ export class ScansController {
 
   // Wake up workers (public - used by frontend when scan is stuck)
   @Public()
+  @SkipThrottle()
   @Post('wake-workers')
   wakeWorkers() {
     this.scansService.triggerWakeUp();

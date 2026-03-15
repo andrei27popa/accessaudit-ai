@@ -314,7 +314,12 @@ export default function HomePage() {
       const result = await api.freeScan(scanUrl);
       router.push(`/scan/${result.id}`);
     } catch (err: any) {
-      setError(err.message || 'Failed to start scan');
+      const msg = err.message || 'Failed to start scan';
+      if (msg.includes('Too Many') || msg.includes('ThrottlerException')) {
+        setError('You\'ve reached the free scan limit (3 per day). Create an account for unlimited scans.');
+      } else {
+        setError(msg);
+      }
     } finally {
       setLoading(false);
     }

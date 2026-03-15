@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { BullModule } from '@nestjs/bullmq';
@@ -7,6 +8,7 @@ import { DatabaseModule } from './common/database.module';
 import { AuthModule } from './auth/auth.module';
 import { ProjectsModule } from './projects/projects.module';
 import { ScansModule } from './scans/scans.module';
+import { CustomThrottlerGuard } from './common/guards/throttle.guard';
 
 function getRedisConnection() {
   const redisUrl = process.env.REDIS_URL;
@@ -32,6 +34,12 @@ function getRedisConnection() {
     AuthModule,
     ProjectsModule,
     ScansModule,
+  ],
+  providers: [
+    {
+      provide: APP_GUARD,
+      useClass: CustomThrottlerGuard,
+    },
   ],
 })
 export class AppModule {}
