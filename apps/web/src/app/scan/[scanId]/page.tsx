@@ -240,6 +240,23 @@ export default function ScanResultsPage() {
           <aside className="w-full lg:w-80 flex-shrink-0">
             <div className="lg:sticky lg:top-6 space-y-6">
 
+              {/* Site Screenshot */}
+              {scan.screenshotUrl && (
+                <Card className="overflow-hidden">
+                  <div className="aspect-video bg-gray-100 relative">
+                    <img
+                      src={scan.screenshotUrl}
+                      alt={`Screenshot of ${scan.url}`}
+                      className="w-full h-full object-cover object-top"
+                    />
+                  </div>
+                  <CardContent className="py-3">
+                    <p className="text-xs text-gray-500 truncate font-mono">{scan.url}</p>
+                    {scan.pageTitle && <p className="text-xs text-gray-400 truncate mt-0.5">{scan.pageTitle}</p>}
+                  </CardContent>
+                </Card>
+              )}
+
               {/* Score Card */}
               <Card>
                 <CardContent className="py-6 text-center">
