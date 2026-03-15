@@ -57,4 +57,12 @@ export class ScansController {
   ) {
     return this.scansService.updateIssueStatus(issueGroupId, status);
   }
+
+  // Wake up workers (public - used by frontend when scan is stuck)
+  @Public()
+  @Post('wake-workers')
+  wakeWorkers() {
+    this.scansService.triggerWakeUp();
+    return { status: 'wake-up triggered' };
+  }
 }

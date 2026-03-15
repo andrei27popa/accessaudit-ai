@@ -28,11 +28,22 @@ export default function ScanResultsPage() {
   const [loading, setLoading] = useState(true);
   const [pollCount, setPollCount] = useState(0);
   const [activeTab, setActiveTab] = useState('all');
+  const [startTime] = useState(() => Date.now());
+  const [wakeTriggered, setWakeTriggered] = useState(false);
 
   const fetchScan = useCallback(async () => {
     try {
       const scanData = await api.getScan(scanId);
       setScan(scanData);
+
+      // If stuck in QUEUED for > 20 seconds, trigger a manual wake-up
+      if (scanData.status === 'QUEUED' && !wakeTriggered) {
+        const elapsed = (Date.now() - startTime) / 1000;
+        if (elapsed > 20) {
+          api.wakeWorkers().catch(() => {});
+          setWakeTriggered(true);
+        }
+      }
 
       if (scanData.status === 'DONE' || scanData.status === 'FAILED') {
         const issueData = await api.getScanIssues(scanId);
@@ -44,7 +55,7 @@ export default function ScanResultsPage() {
     } catch {
       setLoading(false);
     }
-  }, [scanId]);
+  }, [scanId, wakeTriggered, startTime]);
 
   useEffect(() => {
     fetchScan();
@@ -52,14 +63,24 @@ export default function ScanResultsPage() {
 
   useEffect(() => {
     if (scan && scan.status !== 'DONE' && scan.status !== 'FAILED') {
-      const timer = setTimeout(fetchScan, 2000);
+      // Poll faster initially, slow down in QUEUED state
+      const delay = scan.status === 'QUEUED' ? 3000 : 2000;
+      const timer = setTimeout(fetchScan, delay);
       return () => clearTimeout(timer);
     }
   }, [scan, pollCount, fetchScan]);
 
-  // Status messages and progress
+  // Dynamic status messages based on elapsed time
+  const elapsedSeconds = Math.floor((Date.now() - startTime) / 1000);
+  const getQueuedMessage = () => {
+    if (elapsedSeconds > 45) return { message: 'Starting scan workers...', detail: 'Almost ready — our scan infrastructure is warming up. This is a one-time delay.', progress: 12 };
+    if (elapsedSeconds > 20) return { message: 'Waking up scan engine...', detail: 'Starting our scan workers. First scan may take up to a minute.', progress: 10 };
+    return { message: 'Preparing your scan...', detail: 'Your scan is queued and will start shortly', progress: 8 };
+  };
+
+  const queuedInfo = getQueuedMessage();
   const statusInfo: Record<string, { message: string; detail: string; progress: number; step: number }> = {
-    QUEUED: { message: 'Preparing your scan...', detail: 'Your scan is queued and will start shortly', progress: 10, step: 0 },
+    QUEUED: { ...queuedInfo, step: 0 },
     SCANNING: { message: 'Scanning your page...', detail: 'Analyzing accessibility with WCAG 2.2 standards', progress: 40, step: 1 },
     AGGREGATING: { message: 'Analyzing results...', detail: 'Grouping issues and calculating your score', progress: 65, step: 2 },
     REMEDIATING: { message: 'Generating AI fixes...', detail: 'AI is creating code fixes for your issues', progress: 85, step: 3 },
@@ -134,7 +155,11 @@ export default function ScanResultsPage() {
 
             <p className="text-xs text-gray-400 text-center mt-4">{info.detail}</p>
           </div>
-          <p className="text-xs text-gray-400 text-center mt-5">This usually takes 15-30 seconds</p>
+          <p className="text-xs text-gray-400 text-center mt-5">
+            {scan?.status === 'QUEUED' && elapsedSeconds > 30
+              ? 'First scan may take up to 90 seconds while workers start up'
+              : 'This usually takes 30-60 seconds'}
+          </p>
         </div>
       </div>
     );

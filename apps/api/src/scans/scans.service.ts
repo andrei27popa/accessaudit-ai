@@ -5,6 +5,8 @@ import { PrismaService } from '../common/database.module';
 
 @Injectable()
 export class ScansService {
+  private lastWakeTime = 0;
+
   constructor(
     private prisma: PrismaService,
     @InjectQueue('scan') private scanQueue: Queue,
@@ -84,10 +86,38 @@ export class ScansService {
 
   private wakeUpWorkers() {
     const workersUrl = process.env.WORKERS_URL;
-    if (!workersUrl) return;
-    fetch(`${workersUrl}/health`).catch(() => {
-      // Silently ignore - workers may already be awake or starting
-    });
+    if (!workersUrl) {
+      console.warn('[WakeUp] WORKERS_URL not set — cannot wake workers');
+      return;
+    }
+
+    // Retry pinging workers multiple times as Render free tier takes ~50s to spin up
+    const maxRetries = 12; // 12 retries × 5s = 60s total
+    const retryDelay = 5000;
+
+    const ping = async (attempt: number) => {
+      try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 8000);
+        const res = await fetch(`${workersUrl}/health`, { signal: controller.signal });
+        clearTimeout(timeout);
+        if (res.ok) {
+          console.log(`[WakeUp] Workers are alive (attempt ${attempt})`);
+          return; // Workers are up, stop retrying
+        }
+      } catch {
+        // Workers not ready yet
+      }
+
+      if (attempt < maxRetries) {
+        setTimeout(() => ping(attempt + 1), retryDelay);
+      } else {
+        console.error(`[WakeUp] Workers failed to respond after ${maxRetries} attempts`);
+      }
+    };
+
+    // Start pinging in background (don't block the request)
+    ping(1);
   }
 
   async getScan(scanId: string) {
@@ -101,6 +131,16 @@ export class ScansService {
 
     if (!scan) {
       throw new NotFoundException('Scan not found');
+    }
+
+    // If scan has been stuck in QUEUED for > 15 seconds, re-trigger worker wake-up (throttled to once per 30s)
+    if (scan.status === 'QUEUED') {
+      const queuedSeconds = (Date.now() - new Date(scan.createdAt).getTime()) / 1000;
+      const timeSinceLastWake = (Date.now() - this.lastWakeTime) / 1000;
+      if (queuedSeconds > 15 && timeSinceLastWake > 30) {
+        this.lastWakeTime = Date.now();
+        this.wakeUpWorkers();
+      }
     }
 
     return {
@@ -173,5 +213,9 @@ export class ScansService {
       where: { id: issueGroupId },
       data: { status },
     });
+  }
+
+  triggerWakeUp() {
+    this.wakeUpWorkers();
   }
 }

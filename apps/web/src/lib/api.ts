@@ -76,4 +76,7 @@ export const api = {
       method: 'PATCH',
       body: JSON.stringify({ status }),
     }),
+
+  wakeWorkers: () =>
+    apiFetch('/wake-workers', { method: 'POST' }),
 };
