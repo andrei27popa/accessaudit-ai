@@ -48,7 +48,7 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
           </Link>
 
           {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center gap-8">
+          <div className="hidden lg:flex items-center gap-8">
             <Link href="/#features" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">
               Features
             </Link>
@@ -63,7 +63,7 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
             </Link>
           </div>
 
-          <div className="hidden md:flex items-center gap-3">
+          <div className="hidden lg:flex items-center gap-3">
             <Link
               href="/login"
               className="text-sm text-gray-600 hover:text-gray-900 transition-colors px-3 py-2"
@@ -81,7 +81,7 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
           {/* Mobile Hamburger */}
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="md:hidden relative z-50 w-10 h-10 flex items-center justify-center rounded-lg hover:bg-gray-100/80 transition-colors"
+            className="lg:hidden relative z-50 w-10 h-10 flex items-center justify-center rounded-lg hover:bg-gray-100/80 transition-colors"
             aria-label={mobileMenuOpen ? 'Close menu' : 'Open menu'}
             aria-expanded={mobileMenuOpen}
           >
@@ -107,7 +107,7 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
 
         {/* Mobile Menu Overlay */}
         <div
-          className={`md:hidden fixed inset-0 top-16 bg-white z-40 transition-all duration-300 ease-in-out ${
+          className={`lg:hidden fixed inset-0 top-16 bg-white z-40 transition-all duration-300 ease-in-out ${
             mobileMenuOpen ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4 pointer-events-none'
           }`}
         >
